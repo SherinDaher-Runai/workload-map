@@ -40,18 +40,27 @@ vi.mock('./lib/karta/karta', () => ({ getKartaWasm }));
 // page's import graph loads the engine at module scope either.
 import './index';
 
+// The plugin registers itself once, while this module is imported, and vitest
+// clears mock calls before every test. What the import recorded is therefore
+// captured here; reading the mocks inside a test would always find them empty.
+const registered = {
+  engineLoads: getKartaWasm.mock.calls.length,
+  routes: registerRoute.mock.calls.map(([route]) => route),
+  sidebarEntries: registerSidebarEntry.mock.calls.map(([entry]) => entry),
+};
+
 describe('plugin registration', () => {
   // The engine is ~19MB, and every Headlamp user would pay for it at startup
   // whether or not they open Karta. The page loads it when it mounts.
   it('does not load the engine when the plugin is registered', () => {
-    expect(getKartaWasm).not.toHaveBeenCalled();
+    expect(registered.engineLoads).toBe(0);
   });
 
   it('registers the workloads route and its sidebar entries', () => {
-    expect(registerRoute).toHaveBeenCalledWith(
+    expect(registered.routes).toContainEqual(
       expect.objectContaining({ path: '/karta/workloads', exact: true })
     );
-    expect(registerSidebarEntry).toHaveBeenCalledWith(
+    expect(registered.sidebarEntries).toContainEqual(
       expect.objectContaining({ name: 'karta-workloads', url: '/karta/workloads' })
     );
   });
